@@ -20,7 +20,7 @@ from framework.gui import BoardGUI
 from framework.board import Board
 
 BLANK_IMAGE_PATH = 'tiles/chess_blank_scaled.png'
-sg.set_options(scaling=4)
+sg.set_options(scaling=2)
 
 """The state is a tuple with 9 integers. For convenience we just define it as a
 tuple of integers."""

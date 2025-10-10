@@ -145,7 +145,7 @@ def tabu_search(
       If the optimum has not changed in 'long_time' steps, the algorithm stops.
     """
     pass
-    # TODO 
+    # TODO: 
     # Hint: pseudocode from lecture 3 (local search), slide 11
     #       return None if no solution is found
     #       don't forget to yield each state
@@ -156,12 +156,12 @@ def tabu_search(
 
 
 def misplaced(state: State) -> int:
-    return 0 # TODO
+    return 0 # TODO:
     # Hint: description on lecture 3 (local search) slide 22
 
 
 def manhattan(state: State) -> int:
-    return 0 # TODO
+    return 0 # TODO:
     # Hint: description on lecture 3 (local search) slide 22
 
 # END OF YOUR CODE

@@ -121,6 +121,27 @@ def hill_climbing(
         # if with three branches
         # Hint: pseudocode from lecture 3 (local search), slide 5
         #       return None if no solution can be found
+
+        # First branch
+        if not next_states: return None
+        
+        # Removing children (gamma - pi)
+        next_states_without_parent = set(next_states)
+        if parent != problem.nil and parent in next_states_without_parent:
+            next_states_without_parent.remove(parent)
+
+        # Second branch
+        if not next_states_without_parent:
+            if parent == problem.nil: return
+            current = parent
+            parent = problem.nil
+        # Third branch
+        else:
+            chosen = min(next_states_without_parent, key = f)
+            parent = current
+            current = chosen
+
+
     yield current
 
 
@@ -144,25 +165,97 @@ def tabu_search(
     long_time : int
       If the optimum has not changed in 'long_time' steps, the algorithm stops.
     """
-    pass
-    # TODO: 
+    
     # Hint: pseudocode from lecture 3 (local search), slide 11
     #       return None if no solution is found
     #       don't forget to yield each state
     #       don't forget about set operations (such as subtraction)
+
+    current = problem.start_state()
+    opt = problem.start_state()
+    tabu: list[State] = []
+    since_last_improvement = 0
+
+    #while not (problem.is_goal_state(current) or since_last_improvement >= long_time):   # Wouldn't show the last state (goal)
+    while True:
+        yield current
+        if problem.is_goal_state(current) or since_last_improvement >= long_time: return   # Exit condition instead in case it's because of the while quitting early?
+        next_states = problem.next_states(current)
+
+        # First branch
+        if not next_states: return None
+
+        # Removing tabu (gamma - tabu)
+        next_states_without_tabu = [s for s in next_states if s not in tabu]
+
+        # Second branch
+        if not next_states_without_tabu:
+            chosen = min(next_states, key = f)
+        #Third branch
+        else:
+            chosen = min(next_states_without_tabu, key = f)
+
+        # Update tabu
+        tabu.append(chosen)
+        if len(tabu) > tabu_len: tabu.pop(0)
+
+        current = chosen
+
+        # Update opt
+        if f(current) < f(opt):
+            opt = current
+            since_last_improvement = 0
+        else:
+            since_last_improvement += 1
 
 
 # heuristics
 
 
 def misplaced(state: State) -> int:
-    return 0 # TODO:
     # Hint: description on lecture 3 (local search) slide 22
+    count = 0
+    for i in range(9):
+        tile = state[i]
 
+        if tile != 0 and tile != goal[i]:
+            count += 1
+    
+    return count
+
+
+# Precomputed goal row/column indices,
+# so finding them is not needed on every single Manhattan check
+goal_state_rows = [0] * 9
+goal_state_cols = [0] * 9
+for i in range(9):
+    tile = goal[i]
+    goal_state_rows[tile] = i // 3      # div without remainder gives row nr
+    goal_state_cols[tile] = i % 3    # remainder gives column nr
 
 def manhattan(state: State) -> int:
-    return 0 # TODO:
     # Hint: description on lecture 3 (local search) slide 22
+    total_dist = 0
+
+    for i in range(9):
+        tile = state[i]
+
+        # no distance calc since it's not really a tile
+        if tile == 0: continue
+
+        current_row = i // 3
+        current_col = i % 3
+
+        target_row = goal_state_rows[tile]
+        target_col = goal_state_cols[tile]
+
+        row_dist = abs(current_row - target_row)
+        col_dist = abs(current_col - target_col)
+
+        total_dist += (row_dist + col_dist)
+
+    return total_dist
+
 
 # END OF YOUR CODE
 

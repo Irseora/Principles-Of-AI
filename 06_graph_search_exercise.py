@@ -267,7 +267,7 @@ class EvaluationFunctionLF(EvaluationFunction):
         self.h = h
 
     def __call__(self, node):
-        pass # TODO
+        return self.h(node)
 
 
 class EvaluationFunctionAStar(EvaluationFunction):
@@ -335,8 +335,14 @@ def manhattan(problem: SearchProblem):
     """
 
     def heuristics(state: State):
-        pass # TODO
         # Hint: The sum of absolute distance (from target position) vertically + horisontally (for each target_position)
+        target_positions = problem.target_positions(state)
+        position = state.position
+        return sum(
+            abs(position.row - target_position.row)
+            + abs((position.col - target_position.col))
+            for target_position in target_positions
+        )
 
     return heuristics
 

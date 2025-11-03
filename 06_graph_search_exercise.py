@@ -276,7 +276,7 @@ class EvaluationFunctionAStar(EvaluationFunction):
         self.h = h
 
     def __call__(self, node):
-        pass # TODO
+        return self.g[node] + self.h(node)
 
 
 # The GUI runs the search algorithms through these functions.
@@ -355,27 +355,62 @@ class EatDonutsProblem(SearchProblem):
     and then get to the door."""
 
     def __init__(self, game_logic: GameLogic):
-        pass # TODO
         # Hint: Almost identical to the __init__ of the CatToDoorProblem
         #       You need to also consider the donut positions along with the cat positions
         #       The State is now EatDonutsState, use this info as a hint
+        
+        cat_position = game_logic.collect_positions(LabyrinthFields.Cat)[0]
+        donuts_positions = game_logic.collect_positions(LabyrinthFields.Donut)
+        
+        self.state = EatDonutsState(cat_position, donuts_positions)
+        self.door_positions = game_logic.collect_positions(LabyrinthFields.Door)
+        self.walls = [
+            [field == LabyrinthFields.Wall for field in row]
+            for row in game_logic.board
+        ]
+        self.m = len(self.walls)
+        self.n = len(self.walls[0])
+        
 
     def target_positions(self, state : EatDonutsState) -> tuple[Position, ...]:
         """Return the positions of the donuts if there are any left,
         otherwise return the positions of the doors"""
-        pass # TODO
         # Hint: If there are donuts left, then those are the targets.
         #       Otherwise, it's the door(s)
 
+        if state.donuts:
+            return state.donuts
+        
+        return self.door_positions
+
+
     def is_goal_state(self, state: EatDonutsState) -> bool:
-        pass # TODO
         # Hint: If all the donuts are eaten, and we're at the door
 
+        donuts_left = (len(state.donuts) == 0)
+        cat_at_door = (state.position in self.door_positions)
+        return donuts_left and cat_at_door
+
     def next_states(self, state: EatDonutsState) -> set[EatDonutsState]:
-        pass # TODO
         # Hint: Very similar to next_states in CatToDoorProblem, but
         #       we pass the donuts to ns along with the new_position as the parameters 
         #       of the init method (State is EatDonutsState here!)
+
+        ns = set()
+        for action in Actions:
+            new_position = state.position + Directions[action]
+            if (
+                0 <= new_position.row < self.m
+                and 0 <= new_position.col < self.n
+                and not self.walls[new_position.row][new_position.col]
+            ):
+                if new_position in state.donuts:
+                    new_donuts = tuple(p for p in state.donuts if p!= new_position)
+                else:
+                    new_donuts = state.donuts
+
+                ns.add(EatDonutsState(new_position, new_donuts))
+        return ns
 
 
 # END OF YOUR CODE

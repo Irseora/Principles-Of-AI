@@ -124,7 +124,6 @@ MiniMaxReturnType = tuple[Optional[int], Optional[list[GomokuBoard]]]
 # The list of boards contains the solution and
 #   the integer describes the evaluation value of that solution
 
-# TODO: implement the minimax algorithm
 def minimax(board: GomokuBoard) -> None:
     """Do the next step computed by the minimax algorithm."""
     def value(board: GomokuBoard, player: int) -> MiniMaxReturnType:
@@ -146,15 +145,15 @@ def minimax(board: GomokuBoard) -> None:
 
         min_val = 1000
         min_board = None
-        next_board = board
+
         for next_board in board.next_boards(player):
             val, sol = value(next_board, switch_player(player))
+
             if val < min_val:
                 min_val = val
                 min_board = next_board
         
         return (min_val, [min_board] + sol)
-    
 
     def maximize(board: GomokuBoard, player: int) -> MiniMaxReturnType:
         # Hint: very similar approach
@@ -165,14 +164,15 @@ def minimax(board: GomokuBoard) -> None:
 
         max_val = -1000
         max_board = None
+
         for next_board in board.next_boards(player):
             val, sol = value(next_board, switch_player(player))
+
             if val > max_val:
                 max_val = val
                 max_board = next_board
         
         return (max_val, [max_board] + sol)
-    
 
     _, solution = value(board, 2)
     if solution is not None:
@@ -181,11 +181,63 @@ def minimax(board: GomokuBoard) -> None:
 
 def alpha_beta(board: GomokuBoard) -> None:
     """Do the next step computed by the alpha-beta search."""
-    pass # TODO:
+    # TODO:
     # Hint: Implement the alpha-beta pruning in the minimax algorithm
     #       You can start by just copying your minimax algorithm here
     #       Introduce alpha and beta as function parameters in each 
     #       implemented function
+    def value(board: GomokuBoard, player: int, alpha: int, beta: int) -> MiniMaxReturnType:
+        if player == 2:
+            return maximize(board, player, alpha, beta)
+        return minimize(board, player, alpha, beta)
+
+    def minimize(board: GomokuBoard, player: int, alpha: int, beta: int) -> MiniMaxReturnType:
+        winner = board.winner()
+        if winner == 1: return (-1, [])
+        if winner == 2: return ( 1, [])
+        if winner == 0: return ( 0, [])
+
+        min_val = 1000
+        min_board = None
+        
+        for next_board in board.next_boards(player):
+            val, sol = value(next_board, switch_player(player), alpha, beta)
+
+            if val < min_val:
+                min_val = val
+                min_board = next_board
+
+            beta = min(beta, min_val)
+            if beta <= alpha:
+                break
+        
+        return (min_val, [min_board] + sol)
+
+    def maximize(board: GomokuBoard, player: int, alpha: int, beta: int) -> MiniMaxReturnType:
+        winner = board.winner()
+        if winner == 1: return (-1, [])
+        if winner == 2: return ( 1, [])
+        if winner == 0: return ( 0, [])
+
+        max_val = -1000
+        max_board = None
+
+        for next_board in board.next_boards(player):
+            val, sol = value(next_board, switch_player(player), alpha, beta)
+
+            if val > max_val:
+                max_val = val
+                max_board = next_board
+
+            alpha = max(alpha, max_val)
+            if alpha >= beta:
+                break
+        
+        return (max_val, [max_board] + sol)
+
+    _, solution = value(board, 2, -1000, 1000)
+    if solution is not None:
+        board.board = solution[0].board
 
 
 # END OF YOUR CODE

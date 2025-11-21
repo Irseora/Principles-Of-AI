@@ -3,8 +3,8 @@ from random import choice, randint, shuffle, choices, random
 from enum import Flag
 import FreeSimpleGUI as sg  # type: ignore
 
-QUEEN_IMAGE_PATH = "tiles/queen_scaled.png"
-BLANK_IMAGE_PATH = "tiles/chess_blank_scaled.png"
+QUEEN_IMAGE_PATH = "tiles/queen_shrunk.png"
+BLANK_IMAGE_PATH = "tiles/chess_blank_shrunk.png"
 
 sg.change_look_and_feel("SystemDefault")
 
@@ -32,9 +32,11 @@ def valid_population(states : list[State]) -> bool:
 ##################################################
 
 def random_state() -> State:
-    '''Returns a randomly initizalized state'''
+    '''Returns a randomly initizalized state, but not the solution'''
     state = list(range(8))
     shuffle(state)
+    while is_solution(state):
+        shuffle(state)
     return state
 
 def random_population(population_size : int) -> list[State]:
@@ -45,19 +47,21 @@ def random_population(population_size : int) -> list[State]:
 ################ FITNESS FUNCTION ################
 ##################################################
 
+MAX_FITNESS = sum(range(8))
+
 def fitness(state : State) -> int:
     '''Returns the number of nonattacking pairs of queens'''
-    assert valid_state(state)
+    assert valid_state(state), "State to be evaluated is not valid"
     attacks = 0
     for x_a, y_a in enumerate(state):
         for x_b, y_b in enumerate(state):
             if x_b < x_a+1: continue
             attacks += int(x_a+y_a == x_b+y_b) + int(y_a-x_a == y_b-x_b)
-    return sum(range(8)) - attacks
+    return MAX_FITNESS - attacks
 
 def is_solution(state : State) -> bool:
     '''Returns if state is a goal state (# nonatacking queen pairs == # queen pairs'''
-    return fitness(state) == sum(range(8))
+    return fitness(state) == MAX_FITNESS
 
 def contains_solution(states : list[State]) -> Optional[State]:
     '''Returns the solution state (for visualization) if there is any in the population'''
@@ -84,7 +88,7 @@ def print_state(state : State) -> None:
 
 def print_population(states : list[State], f : Callable[[State],int] = fitness) -> None:
     for state in states:
-        assert valid_state(state)
+        assert valid_state(state), "State to be printed is not valid"
         print(state, '-->', f(state))
     print('#'*31)
 
@@ -98,22 +102,26 @@ def selection(states : list[State], min_val : int,
              ) -> list[State]:
     '''Applies regular selection on population'''
     preserved_states = [ state for state in states if f(state) > min_val ]
+    assert preserved_states, "Selection result is empty. Try setting a higher minimum value"
     if oversampling:
         while len(preserved_states) < len(states):
             preserved_states.append(choice(preserved_states))
-    assert valid_population(preserved_states)
+    assert valid_population(preserved_states), "Selection result is not a valid population"
     return preserved_states
 
 def selection_roulette(states : list[State], 
                         f : Callable[[State],int] = fitness
                       ) -> list[State]:
     '''Applies roulette wheel selection on population'''
-    pass # TODO
+    # TODO:
     # Hint: Check lecture 7 (evolution) slide 14
     #       Use choices from random library (and the weights and k optional argument)
     #           to choose k "good" states randomly
     #       The weights should be the deduced using the fitness function
     #       Finally, return the preserved states.
+    preserved_states = choices(states, weights=f, k=10)
+    assert valid_population(preserved_states)
+    return preserved_states
 
 
 ##################################################
@@ -122,8 +130,7 @@ def selection_roulette(states : list[State],
 
 def recombination(states : list[State]) -> list[State]:
     '''Applies recombination step on population'''
-    assert isinstance(states,list)
-    assert valid_population(states)
+    assert valid_population(states), "Recombination input is not a valid population"
     new_states : list[State] = []
     for i in range(0, len(states)-1, 2):
         new_states += recombine(states[i], states[i+1])
@@ -131,10 +138,19 @@ def recombination(states : list[State]) -> list[State]:
 
 def recombine(state_a : State, state_b : State) -> tuple[State, State]:
     '''Applies recombination step on two states'''
-    pass # TODO
+    # TODO:
     # Hint: Check lecture 7 (evolution) slide 12
     #       choose 2 random indexes for division barriers, and then 
     #       perform the recombination
+    idx1 = randint(0, len(state_a) - 1)
+    idx2 = randint(0, len(state_a) - 1)
+
+    for i in range(idx1, idx2 + 1):
+        temp = state_a[i]
+        state_a[i] = state_b[i]
+        state_b[i] = temp
+
+    return (state_a, state_b)
 
 ##################################################
 ##################### REPAIR #####################
@@ -145,15 +161,36 @@ def repair(states : list[State]) -> list[State]:
     new_states : list[State] = []
     for i in range(0, len(states)-1, 2):
         new_states += repair_states(states[i], states[i+1])
-    assert valid_population(new_states)
+    assert valid_population(new_states), "Repair result is not a valid population"
     return new_states
 
 def repair_states(state_a : State, state_b : State) -> tuple[State,State]:
     '''Applies repair step on two states'''
     state_a_, state_b_ = state_a.copy(), state_b.copy()
-    pass # TODO
+    # TODO:
     # Hint: Check for each element in state_a_ if it is contained twice.
     #       If so, find a good substitute for it in state_b_
+    l = len(state_a_)
+    freq_a = [0] * l
+    freq_b = [0] * l
+
+    for i in range(l):
+        freq_a[state_a_[i]] += 1
+        freq_b[state_b_[i]] += 1
+
+    for x in range(l):              # duplicate ELEMENT in a
+        if freq_a[x] == 2:   
+            i = state_a_.index(x)   # INDEX of duplicate element in a       
+            y = freq_b.index(2)     # duplicate ELEMENT in b
+            j = state_b_.index(y)   # INDEX of duplicate element in b
+
+            temp = state_a_[i]
+            state_a_[i] = state_b_[j]
+            state_b_[j] = temp
+
+            freq_a[x] = 1
+            freq_b[y] = 1
+    
     return (state_a_, state_b_)
 
 ##################################################
@@ -163,15 +200,23 @@ def repair_states(state_a : State, state_b : State) -> tuple[State,State]:
 def mutation(states : list[State], chance : float) -> list[State]:
     '''Applies mutation step on population'''
     new_population = [mutate(state, chance) for state in states]
-    assert valid_population(new_population)
+    assert valid_population(new_population), "Mutation result is not a valid population"
     return new_population
 
 def mutate(state : State, chance : float) -> State:
     '''Applies mutation step on one state'''
     mutated_state : State = state.copy()
-    pass # TODO
+    # TODO:
     # Hint: Pick 2 random indexes and swap the elements on those positions
     #       Do that only with the given chance! (Suggestion: use random.random())
+
+    if random() >= chance:
+        idx1 = randint(0, len(mutated_state) - 1)
+        idx2 = randint(0, len(mutated_state) - 1)
+
+        temp = mutated_state[idx1]
+        mutated_state[idx1] = mutated_state[idx2]
+        mutated_state[idx2] = temp
 
     return mutated_state
 
@@ -184,6 +229,7 @@ def replacement(original : list[State], evolved : list[State],
                 f : Callable[[State],int] = fitness
              ) -> list[State]:
     '''Applies replacement step based on original and evolved populations'''
+    assert valid_population(original) and valid_population(evolved), "Replacement input is not a valid population"
     return sorted(original,key=f)[k:] + sorted(evolved,key=f)[-k:]
 
 ##################################################
@@ -256,11 +302,11 @@ def create_window(board_gui):
             sg.Column([
                 [sg.Text("Population Log", font=("Helvetica", "16", "bold"))],
                 [sg.Multiline(
-                    size=(32, 20),
+                    size=(32, 22),
                     key="log",
                     autoscroll=True,
                     disabled=True,
-                    font=("Courier", 18)
+                    font=("Courier", 16)
                 )]
             ])
         ],
@@ -373,15 +419,15 @@ def main():
                 assert 0 <= mutation_prob <= 1
                 assert 28 >= min_fit >= 0
                 assert max_iter > 0
-            except (ValueError, TypeError, AssertionError):
-                window["status"].update("Invalid parameter values!")
-                go = False
-            else:
                 evolved_state = (
                     selection_roulette(population)
                     if use_roulette else
                     selection(population, min_fit)
                 )
+            except (ValueError, TypeError, AssertionError):
+                window["status"].update("Invalid parameter values!")
+                go = False
+            else:
                 shuffle(evolved_state)
                 evolved_state = recombination(evolved_state)
                 evolved_state = repair(evolved_state)

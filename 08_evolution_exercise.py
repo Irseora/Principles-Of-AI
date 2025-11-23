@@ -113,13 +113,12 @@ def selection_roulette(states : list[State],
                         f : Callable[[State],int] = fitness
                       ) -> list[State]:
     '''Applies roulette wheel selection on population'''
-    # TODO:
     # Hint: Check lecture 7 (evolution) slide 14
     #       Use choices from random library (and the weights and k optional argument)
     #           to choose k "good" states randomly
     #       The weights should be the deduced using the fitness function
     #       Finally, return the preserved states.
-    preserved_states = choices(states, weights=f, k=10)
+    preserved_states = choices(states, weights=[f(s) for s in states], k=len(states))
     assert valid_population(preserved_states)
     return preserved_states
 
@@ -138,19 +137,36 @@ def recombination(states : list[State]) -> list[State]:
 
 def recombine(state_a : State, state_b : State) -> tuple[State, State]:
     '''Applies recombination step on two states'''
-    # TODO:
     # Hint: Check lecture 7 (evolution) slide 12
     #       choose 2 random indexes for division barriers, and then 
     #       perform the recombination
-    idx1 = randint(0, len(state_a) - 1)
-    idx2 = randint(0, len(state_a) - 1)
+    l = len(state_a)
+    idx1 = randint(0, l - 1)
+    idx2 = randint(0, l - 1)
+    if (idx2 < idx1):
+        temp = idx1
+        idx1 = idx2
+        idx2 = temp
+
+    state_a_ = state_a.copy()
+    state_b_ = state_b.copy()
+
+    state_a_[idx1 : idx2 + 1] = state_b[idx1 : idx2 + 1]
+    state_b_[idx1 : idx2 + 1] = state_a[idx1 : idx2 + 1]
 
     for i in range(idx1, idx2 + 1):
-        temp = state_a[i]
-        state_a[i] = state_b[i]
-        state_b[i] = temp
+        val = state_a[i]
+        if val not in state_a_:
+            pos = state_a_.index(state_b[i])
+            state_a_[pos] = val
 
-    return (state_a, state_b)
+    for i in range(idx1, idx2 + 1):
+        val = state_b[i]
+        if val not in state_b_:
+            pos = state_b_.index(state_a[i])
+            state_b_[pos] = val
+
+    return (state_a_, state_b_)
 
 ##################################################
 ##################### REPAIR #####################
@@ -167,30 +183,33 @@ def repair(states : list[State]) -> list[State]:
 def repair_states(state_a : State, state_b : State) -> tuple[State,State]:
     '''Applies repair step on two states'''
     state_a_, state_b_ = state_a.copy(), state_b.copy()
-    # TODO:
     # Hint: Check for each element in state_a_ if it is contained twice.
     #       If so, find a good substitute for it in state_b_
-    l = len(state_a_)
-    freq_a = [0] * l
-    freq_b = [0] * l
 
-    for i in range(l):
-        freq_a[state_a_[i]] += 1
-        freq_b[state_b_[i]] += 1
+    def repair_one_state(state : State) -> State:
+        l = len(state)
+        repaired = state.copy()
 
-    for x in range(l):              # duplicate ELEMENT in a
-        if freq_a[x] == 2:   
-            i = state_a_.index(x)   # INDEX of duplicate element in a       
-            y = freq_b.index(2)     # duplicate ELEMENT in b
-            j = state_b_.index(y)   # INDEX of duplicate element in b
+        freq = [0] * l
+        for val in repaired:
+            freq[val] += 1
 
-            temp = state_a_[i]
-            state_a_[i] = state_b_[j]
-            state_b_[j] = temp
+        missing_vals = [val for val in range(l) if freq[val] == 0]
 
-            freq_a[x] = 1
-            freq_b[y] = 1
-    
+        freq_seen = [0] * l
+        missing_idx = 0
+        for idx, val in enumerate(repaired):
+            if freq_seen[val] == 0:
+                freq_seen[val] += 1
+            else:
+                repaired[idx] = missing_vals[missing_idx]
+                missing_idx += 1
+
+        return repaired
+
+    state_a_ = repair_one_state(state_a)
+    state_b_ = repair_one_state(state_b)
+
     return (state_a_, state_b_)
 
 ##################################################
@@ -206,11 +225,10 @@ def mutation(states : list[State], chance : float) -> list[State]:
 def mutate(state : State, chance : float) -> State:
     '''Applies mutation step on one state'''
     mutated_state : State = state.copy()
-    # TODO:
     # Hint: Pick 2 random indexes and swap the elements on those positions
     #       Do that only with the given chance! (Suggestion: use random.random())
 
-    if random() >= chance:
+    if random() < chance:
         idx1 = randint(0, len(mutated_state) - 1)
         idx2 = randint(0, len(mutated_state) - 1)
 
